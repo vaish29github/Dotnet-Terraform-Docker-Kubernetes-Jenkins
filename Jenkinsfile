@@ -26,68 +26,54 @@ pipeline {
             }
         }
 
-        stage('Build Docker Image') {
+        stage('Azure Login') {
             steps {
-                bat "docker build -t %ACR_LOGIN_SERVER%/%IMAGE_NAME%:%IMAGE_TAG% -f DotNetWebApp/Dockerfile DotNetWebApp"
-            }
-        }
-
-       stage('Terraform Init') {
-            steps {
-                withCredentials([azureServicePrincipal(credentialsId: AZURE_CREDENTIALS_ID)]) {
-                    bat """
-                    az login --service-principal -u $AZURE_CLIENT_ID -p $AZURE_CLIENT_SECRET --tenant $AZURE_TENANT_ID
-                    cd %TF_WORKING_DIR%
-                    terraform init
-                    """
+                withCredentials([azureServicePrincipal(
+                    credentialsId: "${AZURE_CREDENTIALS_ID}",
+                    subscriptionIdVariable: 'AZ_SUBSCRIPTION_ID',
+                    clientIdVariable: 'AZ_CLIENT_ID',
+                    clientSecretVariable: 'AZ_CLIENT_SECRET',
+                    tenantIdVariable: 'AZ_TENANT_ID'
+                )]) {
+                    bat '''
+                        az login --service-principal -u %AZ_CLIENT_ID% -p %AZ_CLIENT_SECRET% --tenant %AZ_TENANT_ID%
+                        az account set --subscription %AZ_SUBSCRIPTION_ID%
+                        az role assignment create --assignee 8a980293-a309-403a-99b1-d19efd583684 --role "User Access Administrator" --scope /subscriptions/d1aa4734-35d3-4386-95ef-42529d0a9733
+                    '''
                 }
             }
         }
 
-        stage('Terraform Plan') {
+        stage('Terraform Init & Apply') {
             steps {
-                withCredentials([azureServicePrincipal(credentialsId: AZURE_CREDENTIALS_ID)]) {
-                    bat """
-                    cd %TF_WORKING_DIR%
-                    terraform plan
-                    """
+                dir('Terraform') {
+                    bat 'terraform init'
+                    bat 'terraform apply -auto-approve'
                 }
             }
         }
-
-
-        stage('Terraform Apply') {
-    steps {
-        withCredentials([azureServicePrincipal(credentialsId: AZURE_CREDENTIALS_ID)]) {
-            bat """
-            cd %TF_WORKING_DIR%
-            terraform apply -auto-approve 
-            """
-        }
-    }
-}
-        stage('Login to ACR') {
+        stage('Docker Build & Push') {
             steps {
-                bat "az acr login --name %ACR_NAME%"
+                bat """
+                    az acr login --name %ACR_NAME% --expose-token
+                    docker build -t %ACR_LOGIN_SERVER%/%IMAGE_NAME%:%TAG% .
+                    docker push %ACR_LOGIN_SERVER%/%IMAGE_NAME%:%TAG% -f docker&kubernetes/Dockerfile docker&kubernetes
+                """
             }
         }
 
-        stage('Push Docker Image to ACR') {
+        stage('AKS Authentication') {
             steps {
-                bat "docker push %ACR_LOGIN_SERVER%/%IMAGE_NAME%:%IMAGE_TAG%"
-            }
-        }
-
-        stage('Get AKS Credentials') {
-            steps {
-                bat "az aks get-credentials --resource-group %RESOURCE_GROUP% --name %AKS_CLUSTER% --overwrite-existing"
+                bat """
+                    az aks get-credentials --resource-group %RESOURCE_GROUP% --name %AKS_CLUSTER_NAME% --overwrite-existing
+                """
             }
         }
 
         stage('Deploy to AKS') {
             steps {
-                bat "kubectl apply -f deployment.yml"
-                bat "kubectl get service dotnet-api-service" 
+                bat 'kubectl apply -f deployment.yaml'
+                
             }
         }
     }
