@@ -1,0 +1,32 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dotnet-api-deployment
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: dotnet-api-deployment
+  template:
+    metadata:
+      labels:
+        app: dotnet-api-deployment
+    spec:
+      containers:
+        - name: dotnet-api-deployment
+          image: kubernetesacr291201.azurecr.io/kubernetes291201:latest
+          ports:
+            - containerPort: 8080
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: dotnet-api-service
+spec:
+  type: LoadBalancer
+  selector:
+    app: dotnet-api
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 8080
