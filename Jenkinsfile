@@ -38,7 +38,7 @@ pipeline {
                     bat '''
                         az login --service-principal -u %AZ_CLIENT_ID% -p %AZ_CLIENT_SECRET% --tenant %AZ_TENANT_ID%
                         az account set --subscription %AZ_SUBSCRIPTION_ID%
-                        az role assignment create --assignee 8a980293-a309-403a-99b1-d19efd583684 --role "User Access Administrator" --scope /subscriptions/d1aa4734-35d3-4386-95ef-42529d0a9733
+                        az role assignment create --assignee a28df90f-6520-4088-92e2-284c8f02a995 --role "User Access Administrator" --scope /subscriptions/b691c69b-aff1-4fe4-b0a8-677e09ce0277
                     '''
                 }
             }
@@ -57,7 +57,7 @@ pipeline {
                 bat """
                     az acr login --name %ACR_NAME% --expose-token
                     docker build -t %ACR_LOGIN_SERVER%/%IMAGE_NAME%:%TAG% .
-                    docker push %ACR_LOGIN_SERVER%/%IMAGE_NAME%:%TAG% -f docker&kubernetes/Dockerfile docker&kubernetes
+                    docker push %ACR_LOGIN_SERVER%/%IMAGE_NAME%:%TAG% -f DotnetWebApp/Dockerfile DotnetWebApp
                 """
             }
         }
