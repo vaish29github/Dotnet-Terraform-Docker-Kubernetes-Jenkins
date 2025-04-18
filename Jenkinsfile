@@ -25,58 +25,82 @@ pipeline {
                 git branch: 'main', url: 'https://github.com/vaish29github/Dotnet-Terraform-Docker-Kubernetes-Jenkins.git'
             }
         }
-
-        stage('Azure Login') {
+        stage('Build .NET App') {
             steps {
-                withCredentials([azureServicePrincipal(
-                    credentialsId: "${AZURE_CREDENTIALS_ID}",
-                    subscriptionIdVariable: 'AZ_SUBSCRIPTION_ID',
-                    clientIdVariable: 'AZ_CLIENT_ID',
-                    clientSecretVariable: 'AZ_CLIENT_SECRET',
-                    tenantIdVariable: 'AZ_TENANT_ID'
-                )]) {
-                    bat '''
-                        az login --service-principal -u %AZ_CLIENT_ID% -p %AZ_CLIENT_SECRET% --tenant %AZ_TENANT_ID%
-                        az account set --subscription %AZ_SUBSCRIPTION_ID%
-                        az role assignment create --assignee a28df90f-6520-4088-92e2-284c8f02a995 --role "User Access Administrator" --scope /subscriptions/b691c69b-aff1-4fe4-b0a8-677e09ce0277
-                    '''
+                bat 'dotnet publish DotnetWebApp\\DotnetWebApp.csproj -c Release -o out'
+            }
+        }
+
+        stage('Build Docker Image') {
+            steps {
+                bat "docker build -t %ACR_LOGIN_SERVER%/%IMAGE_NAME%:%IMAGE_TAG% -f DotnetWebApp/Dockerfile DotnetWebApp"
+            }
+        }
+
+       stage('Terraform Init') {
+            steps {
+                withCredentials([azureServicePrincipal(credentialsId: AZURE_CREDENTIALS_ID)]) {
+                    bat """
+                    echo "Navigating to Terraform Directory: %TF_WORKING_DIR%"
+                    cd %TF_WORKING_DIR%
+                    echo "Initializing Terraform..."
+                    terraform init
+                    """
                 }
             }
         }
 
-        stage('Terraform Init & Apply') {
+        stage('Terraform Plan') {
             steps {
-                dir('Terraform') {
-                    bat 'terraform init'
-                    bat 'terraform apply -auto-approve'
+                withCredentials([azureServicePrincipal(credentialsId: AZURE_CREDENTIALS_ID)]) {
+                    bat """
+                    echo "Navigating to Terraform Directory: %TF_WORKING_DIR%"
+                    cd %TF_WORKING_DIR%
+                    terraform plan -out=tfplan
+                    """
                 }
             }
         }
-        stage('Docker Build & Push') {
+
+
+        stage('Terraform Apply') {
+    steps {
+        withCredentials([azureServicePrincipal(credentialsId: AZURE_CREDENTIALS_ID)]) {
+            bat """
+            echo "Navigating to Terraform Directory: %TF_WORKING_DIR%"
+            cd %TF_WORKING_DIR%
+            echo "Applying Terraform Plan..."
+            terraform apply -auto-approve tfplan
+            """
+        }
+    }
+}
+        stage('Login to ACR') {
             steps {
-                bat """
-                    az acr login --name %ACR_NAME% --expose-token
-                    docker build -t %ACR_LOGIN_SERVER%/%IMAGE_NAME%:%TAG% .
-                    docker push %ACR_LOGIN_SERVER%/%IMAGE_NAME%:%TAG% -f DotnetWebApp/Dockerfile DotnetWebApp
-                """
+                bat "az acr login --name %ACR_NAME%"
             }
         }
 
-        stage('AKS Authentication') {
+        stage('Push Docker Image to ACR') {
             steps {
-                bat """
-                    az aks get-credentials --resource-group %RESOURCE_GROUP% --name %AKS_CLUSTER_NAME% --overwrite-existing
-                """
+                bat "docker push %ACR_LOGIN_SERVER%/%IMAGE_NAME%:%IMAGE_TAG%"
+            }
+        }
+
+        stage('Get AKS Credentials') {
+            steps {
+                bat "az aks get-credentials --resource-group %RESOURCE_GROUP% --name %AKS_CLUSTER% --overwrite-existing"
             }
         }
 
         stage('Deploy to AKS') {
             steps {
-                bat 'kubectl apply -f deployment.yaml'
-                
+                bat "kubectl apply -f deployment.yml"
+                bat "kubectl get service dotnet-api-service"
             }
         }
     }
+
 
     post {
         success {
