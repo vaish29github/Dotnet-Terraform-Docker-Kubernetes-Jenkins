@@ -2,22 +2,21 @@ pipeline {
     agent any
 
     environment {
-        DOTNET_PATH = 'C:\\Program Files\\dotnet'
-        DOCKER_PATH = 'C:\\Program Files\\Docker\\Docker\\resources\\bin'
-        TERRAFORM_PATH = 'C:\\Users\\user\\OneDrive\\Desktop\\terraform_1.11.3_windows_386'
-        AZURE_CLI_PATH = 'C:\\Program Files\\Microsoft SDKs\\Azure\\CLI2\\wbin'
-        CMD_PATH = 'C:\\Windows\\System32'
-        
-        PATH = "${DOTNET_PATH};${DOCKER_PATH};${TERRAFORM_PATH};${AZURE_CLI_PATH};${CMD_PATH};${PATH}"
-        
-        ACR_NAME = 'kubernetesacr291201'
-        AZURE_CREDENTIALS_ID = 'azure-service-principal-dockerkubernetes'
-        ACR_LOGIN_SERVER = "${ACR_NAME}.azurecr.io"
-        IMAGE_NAME = 'kubernetes291201'
-        IMAGE_TAG = 'latest'
-        RESOURCE_GROUP = 'rg-aks-acr2912'
-        AKS_CLUSTER = 'mycluster291201'
-        TF_WORKING_DIR = 'Terraform'
+        DOTNET_PATH       = 'C:\\Program Files\\dotnet'
+        DOCKER_PATH       = 'C:\\Program Files\\Docker\\Docker\\resources\\bin'
+        TERRAFORM_PATH    = 'C:\\Users\\user\\OneDrive\\Desktop\\terraform_1.11.3_windows_386'
+        AZURE_CLI_PATH    = 'C:\\Program Files\\Microsoft SDKs\\Azure\\CLI2\\wbin'
+        CMD_PATH          = 'C:\\Windows\\System32'
+        PATH              = "${DOTNET_PATH};${DOCKER_PATH};${TERRAFORM_PATH};${AZURE_CLI_PATH};${CMD_PATH};${PATH}"
+
+        ACR_NAME              = 'kubernetesacr291201'
+        AZURE_CREDENTIALS_ID  = 'azure-service-principal-dockerkubernetes'
+        ACR_LOGIN_SERVER      = "${ACR_NAME}.azurecr.io"
+        IMAGE_NAME            = 'kubernetes291201'
+        IMAGE_TAG             = 'latest'
+        RESOURCE_GROUP        = 'rg-aks-acr2912'
+        AKS_CLUSTER           = 'mycluster291201'
+        TF_WORKING_DIR        = 'Terraform'
     }
 
     stages {
@@ -33,14 +32,14 @@ pipeline {
             }
         }
 
-       stage('Terraform Init') {
+        stage('Terraform Init') {
             steps {
                 withCredentials([azureServicePrincipal(credentialsId: AZURE_CREDENTIALS_ID)]) {
                     bat """
-                    echo "Navigating to Terraform Directory: %TF_WORKING_DIR%"
-                    cd %TF_WORKING_DIR%
-                    echo "Initializing Terraform..."
-                    terraform init
+                        echo "Navigating to Terraform Directory: %TF_WORKING_DIR%"
+                        cd %TF_WORKING_DIR%
+                        echo "Initializing Terraform..."
+                        terraform init
                     """
                 }
             }
@@ -50,35 +49,35 @@ pipeline {
             steps {
                 withCredentials([azureServicePrincipal(credentialsId: AZURE_CREDENTIALS_ID)]) {
                     bat """
-                    echo "Navigating to Terraform Directory: %TF_WORKING_DIR%"
-                    cd %TF_WORKING_DIR%
-                    terraform plan -out=tfplan
+                        echo "Navigating to Terraform Directory: %TF_WORKING_DIR%"
+                        cd %TF_WORKING_DIR%
+                        terraform plan -out=tfplan
                     """
                 }
             }
         }
 
-
         stage('Terraform Apply') {
-    steps {
-        withCredentials([azureServicePrincipal(credentialsId: AZURE_CREDENTIALS_ID)]) {
-            bat """
-            echo "Navigating to Terraform Directory: %TF_WORKING_DIR%"
-            cd %TF_WORKING_DIR%
-            echo "Applying Terraform Plan..."
-            terraform apply -auto-approve tfplan
-            """
+            steps {
+                withCredentials([azureServicePrincipal(credentialsId: AZURE_CREDENTIALS_ID)]) {
+                    bat """
+                        echo "Navigating to Terraform Directory: %TF_WORKING_DIR%"
+                        cd %TF_WORKING_DIR%
+                        echo "Applying Terraform Plan..."
+                        terraform apply -auto-approve tfplan
+                    """
+                }
+            }
         }
-    }
-}
+
         stage('Login to ACR') {
             steps {
                 withCredentials([azureServicePrincipal(credentialsId: AZURE_CREDENTIALS_ID)]) {
                     bat "az login --service-principal -u $AZURE_CLIENT_ID -p $AZURE_CLIENT_SECRET --tenant $AZURE_TENANT_ID"
                     bat "az acr login --name %ACR_NAME%"
                 }
-            }
-        }
+            }
+        }
 
         stage('Push Docker Image to ACR') {
             steps {
@@ -99,7 +98,6 @@ pipeline {
             }
         }
     }
-
 
     post {
         success {
