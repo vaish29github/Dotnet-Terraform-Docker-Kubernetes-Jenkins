@@ -6,8 +6,9 @@ pipeline {
         DOCKER_PATH = 'C:\\Program Files\\Docker\\Docker\\resources\\bin'
         TERRAFORM_PATH = 'C:\\Users\\user\\OneDrive\\Desktop\\terraform_1.11.3_windows_386'
         AZURE_CLI_PATH = 'C:\\Program Files\\Microsoft SDKs\\Azure\\CLI2\\wbin'
+        CMD_PATH = 'C:\\Windows\\System32'
         
-        PATH = "${DOTNET_PATH};${DOCKER_PATH};${TERRAFORM_PATH};${AZURE_CLI_PATH};${PATH}"
+        PATH = "${DOTNET_PATH};${DOCKER_PATH};${TERRAFORM_PATH};${AZURE_CLI_PATH};${CMD_PATH};${PATH}"
         
         ACR_NAME = 'kubernetesacr291201'
         AZURE_CREDENTIALS_ID = 'azure-service-principal-dockerkubernetes'
