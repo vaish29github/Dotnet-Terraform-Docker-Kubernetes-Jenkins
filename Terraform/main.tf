@@ -19,7 +19,7 @@ provider "azurerm" {
 
 # Variables
 variable "location" {
-  default = "East US 2"
+  default = "Central US"
 }
 
 variable "resource_group_name" {
