@@ -25,11 +25,6 @@ pipeline {
                 git branch: 'main', url: 'https://github.com/vaish29github/Dotnet-Terraform-Docker-Kubernetes-Jenkins.git'
             }
         }
-        stage('Build .NET App') {
-            steps {
-                bat 'dotnet publish DotnetWebApp\\DotnetWebApp.csproj -c Release -o out'
-            }
-        }
 
         stage('Build Docker Image') {
             steps {
